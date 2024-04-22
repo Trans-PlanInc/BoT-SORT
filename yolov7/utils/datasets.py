@@ -204,6 +204,9 @@ class LoadImages:  # for inference
         self.nf = ni + nv  # number of files
         self.video_flag = [False] * ni + [True] * nv
         self.mode = "image"
+        self.frame_pbar = None
+        self.count = 0
+
         if any(videos):
             self.new_video(videos[0])  # new video
         else:
@@ -219,6 +222,8 @@ class LoadImages:  # for inference
 
     def __next__(self):
         if self.count == self.nf:
+            if self.frame_pbar is not None:
+                self.frame_pbar.close()
             raise StopIteration
         path = self.files[self.count]
 
@@ -230,6 +235,7 @@ class LoadImages:  # for inference
                 self.count += 1
                 self.cap.release()
                 if self.count == self.nf:  # last video
+                    self.frame_pbar.close()
                     raise StopIteration
                 else:
                     path = self.files[self.count]
@@ -237,10 +243,7 @@ class LoadImages:  # for inference
                     ret_val, img0 = self.cap.read()
 
             self.frame += 1
-            print(
-                f"video {self.count + 1}/{self.nf} ({self.frame}/{self.nframes}) {path}: ",
-                end="",
-            )
+            self.frame_pbar.update()
 
         else:
             # Read image
@@ -262,6 +265,12 @@ class LoadImages:  # for inference
         self.frame = 0
         self.cap = cv2.VideoCapture(path)
         self.nframes = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
+
+        if self.frame_pbar is not None:
+            self.frame_pbar.close()
+
+        self.frame_pbar = tqdm(total=self.nframes)
+        print(f"video {self.count + 1}/{self.nf}")
 
     def __len__(self):
         return self.nf  # number of files
@@ -310,6 +319,7 @@ class LoadWebcam:  # for inference
         # Print
         assert ret_val, f"Camera Error {self.pipe}"
         img_path = "webcam.jpg"
+
         print(f"webcam {self.count}: ", end="")
 
         # Padded resize

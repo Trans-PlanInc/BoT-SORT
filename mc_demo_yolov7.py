@@ -7,6 +7,7 @@ import cv2
 import torch
 import torch.backends.cudnn as cudnn
 from numpy import random
+from tqdm import tqdm
 
 from yolov7.models.experimental import attempt_load
 from yolov7.utils.datasets import LoadStreams, LoadImages
@@ -37,10 +38,10 @@ sys.path.insert(0, "./yolov7")
 sys.path.append(".")
 
 
-def write_results(filename, results):
-    save_format = "{frame},{id},{x1},{y1},{w},{h},{c},{s},-1,-1,-1\n"
+def write_results(filename, results, pbar: tqdm = None):
+    save_format = "{frame},{id},{x1},{y1},{w},{h},{s},{c},-1,-1\n"
     with open(filename, "a") as f:
-        for frame_id, track_id, tlwh, cls, score in results:
+        for frame_id, track_id, tlwh, score, cls in results:
             if track_id < 0:
                 continue
             x1, y1, w, h = tlwh
@@ -51,11 +52,16 @@ def write_results(filename, results):
                 y1=round(y1, 1),
                 w=round(w, 1),
                 h=round(h, 1),
-                c=int(round(cls, 1)),
+                c=int(round(cls, 1) + 1),
                 s=round(score, 2),
             )
             f.write(line)
-    print("save results to {}".format(filename))
+
+    # msg = f"save results to {filename}"
+    # if pbar is not None:
+    #     pbar.write(msg)
+    # else:
+    #     print(msg)
 
 
 def detect(save_img=False):
@@ -198,8 +204,8 @@ def detect(save_img=False):
                                 tlwh[2],
                                 tlwh[3],
                             ),
-                            t.cls,
                             t.score,
+                            t.cls,
                         )
                     )
 

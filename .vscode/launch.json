@@ -24,8 +24,13 @@
         "--save-txt",
         "--weights",
         "${input:weights}",
+        "--img-size",
+        "3840",
         "--source",
-        "${input:video}"
+        "${input:video}",
+        "--project",
+        "${input:output}",
+        "--nosave"
       ]
     },
     {
@@ -51,7 +56,7 @@
     {
       "id": "weights",
       "type": "promptString",
-      "default": "/d/WORK/Trained Models/best.pt",
+      "default": "/d/WORK/Trained Models/Yolov7 100e Big Training Loop/best.pt",
       "description": "Path to weights file"
     },
     {
@@ -59,6 +64,12 @@
       "type": "promptString",
       "default": "/d/Drone Datasets/generated dataset/footage/SWP0047_Trim.mp4",
       "description": "Path to video file"
+    },
+    {
+      "id": "output",
+      "type": "promptString",
+      "default": "/d/Drone Datasets/generated dataset/footage/",
+      "description": "Path to output folder"
     },
     {
       "id": "tracks",

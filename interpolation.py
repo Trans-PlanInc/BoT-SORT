@@ -5,13 +5,21 @@ import numpy as np
 import os
 import glob
 
-sys.path.append('.')
+from tqdm import tqdm
+
+sys.path.append(".")
 
 
 def make_parser():
     parser = argparse.ArgumentParser("Interpolation!")
-    parser.add_argument("--txt_path", default="", help="path to tracking result path in MOTChallenge format")
-    parser.add_argument("--save_path", default=None, help="save result path, none for override")
+    parser.add_argument(
+        "--txt_path",
+        default="",
+        help="path to tracking result path in MOTChallenge format",
+    )
+    parser.add_argument(
+        "--save_path", default=None, help="save result path, none for override"
+    )
     parser.add_argument("--n_min", type=int, default=5, help="minimum")
     parser.add_argument("--n_dti", type=int, default=20, help="dti")
 
@@ -24,30 +32,40 @@ def mkdir_if_missing(d):
 
 
 def write_results_score(filename, results):
-    save_format = '{frame},{id},{x1},{y1},{w},{h},{cls},{s},-1,-1,-1\n'
-    with open(filename, 'w') as f:
+    save_format = "{frame},{id},{x1},{y1},{w},{h},{s},{cls},-1,-1\n"
+    with open(filename, "w") as f:
         for i in range(results.shape[0]):
             frame_data = results[i]
             frame_id = int(frame_data[0])
             track_id = int(frame_data[1])
             x1, y1, w, h = frame_data[2:6]
-            cls = frame_data[6]
-            line = save_format.format(frame=frame_id, id=track_id, x1=x1, y1=y1, w=w, h=h, cls=cls, s=-1)
+            s = frame_data[6]
+            cls = int(frame_data[7])
+            line = save_format.format(
+                frame=frame_id,
+                id=track_id,
+                x1=int(x1),
+                y1=int(y1),
+                w=int(w),
+                h=int(h),
+                cls=cls,
+                s=-1,
+            )
             f.write(line)
 
 
 def dti(txt_path, save_path, n_min=25, n_dti=20):
-    
-    seq_txts = sorted(Path(txt_path).glob('*.txt'))
+
+    seq_txts = sorted(Path(txt_path).glob("*.txt"))
     for seq_txt in seq_txts:
         seq_name = seq_txt.name
         print(seq_name)
-        seq_data = np.loadtxt(seq_txt, dtype=np.float64, delimiter=',')
+        seq_data = np.loadtxt(seq_txt, dtype=np.float64, delimiter=",")
         min_id = int(np.min(seq_data[:, 1]))
         max_id = int(np.max(seq_data[:, 1]))
-        seq_results = np.zeros((1, 11), dtype=np.float64)
-        for track_id in range(min_id, max_id + 1):
-            index = (seq_data[:, 1] == track_id)
+        seq_results = np.zeros((1, 10), dtype=np.float64)
+        for track_id in tqdm(range(min_id, max_id + 1)):
+            index = seq_data[:, 1] == track_id
             tracklet = seq_data[index]
             tracklet_dti = tracklet
             if tracklet.shape[0] == 0:
@@ -70,18 +88,19 @@ def dti(txt_path, save_path, n_min=25, n_dti=20):
                         left_bbox = tracklet[i - 1, 2:6]
                         for j in range(1, num_bi + 1):
                             curr_frame = j + left_frame
-                            curr_bbox = (curr_frame - left_frame) * (right_bbox - left_bbox) / \
-                                        (right_frame - left_frame) + left_bbox
+                            curr_bbox = (curr_frame - left_frame) * (
+                                right_bbox - left_bbox
+                            ) / (right_frame - left_frame) + left_bbox
                             frames_dti[curr_frame] = curr_bbox
                 num_dti = len(frames_dti.keys())
                 if num_dti > 0:
-                    data_dti = np.zeros((num_dti, 11), dtype=np.float64)
+                    data_dti = np.zeros((num_dti, 10), dtype=np.float64)
                     for n in range(num_dti):
                         data_dti[n, 0] = list(frames_dti.keys())[n]
                         data_dti[n, 1] = track_id
                         data_dti[n, 2:6] = frames_dti[list(frames_dti.keys())[n]]
-                        data_dti[n, 6] = tracklet[i, 6]
-                        data_dti[n, 7:] = [1, -1, -1, -1]
+                        data_dti[n, 6:8] = tracklet[i, 6:8]
+                        data_dti[n, 8:] = [-1, -1]
                     tracklet_dti = np.vstack((tracklet, data_dti))
             seq_results = np.vstack((seq_results, tracklet_dti))
         save_seq_txt = os.path.join(save_path, seq_name)
@@ -90,7 +109,7 @@ def dti(txt_path, save_path, n_min=25, n_dti=20):
         write_results_score(save_seq_txt, seq_results)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     args = make_parser().parse_args()
 
     if args.save_path is None:
@@ -98,4 +117,3 @@ if __name__ == '__main__':
 
     mkdir_if_missing(args.save_path)
     dti(args.txt_path, args.save_path, n_min=args.n_min, n_dti=args.n_dti)
-
